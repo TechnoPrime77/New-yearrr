@@ -5,174 +5,159 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Happy New Year</title>
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #050505;
+  overflow: hidden;
+  height: 100%;
+  font-family: 'Georgia', serif;
+}
 
-  body {
-    background: #050505;
-    height: 100vh;
-    overflow: hidden;
-    font-family: 'Arial', sans-serif;
-  }
+#hint {
+  position: absolute;
+  bottom: 90px;
+  width: 100%;
+  text-align: center;
+  color: #aaa;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
 
-  .hint {
-    position: absolute;
-    bottom: 90px;
-    width: 100%;
-    text-align: center;
-    color: #777;
-    font-size: 14px;
-    letter-spacing: 1px;
-  }
+#launcher {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 40px;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
 
-  .cracker {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 42px;
-    cursor: pointer;
-    transition: transform 0.3s;
-    z-index: 10;
-  }
+#launcher:active {
+  transform: translateX(-50%) scale(0.9);
+}
 
-  .spark {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    background: gold;
-    border-radius: 50%;
-    pointer-events: none;
-    animation: spark 0.6s linear forwards;
-  }
+canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
 
-  @keyframes spark {
-    from {
-      opacity: 1;
-      transform: translate(0,0) scale(1);
-    }
-    to {
-      opacity: 0;
-      transform: translate(var(--x), var(--y)) scale(0);
-    }
-  }
+#message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  text-align: center;
+  font-size: 22px;
+  line-height: 1.5;
+  opacity: 0;
+  transition: opacity 2s ease;
+  padding: 20px;
+}
 
-  .flash {
-    position: fixed;
-    inset: 0;
-    background: white;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s;
-    z-index: 20;
-  }
+.flash {
+  animation: flash 0.4s;
+}
 
-  .message {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    color: #f2f2f2;
-    font-size: 20px;
-    padding: 30px;
-    opacity: 0;
-    transition: opacity 1.5s ease;
-    z-index: 5;
-  }
-
-  .shake {
-    animation: shake 0.3s;
-  }
-
-  @keyframes shake {
-    0% { transform: translate(0,0); }
-    25% { transform: translate(-5px,5px); }
-    50% { transform: translate(5px,-5px); }
-    75% { transform: translate(-5px,-5px); }
-    100% { transform: translate(0,0); }
-  }
+@keyframes flash {
+  0% { background: #fff; }
+  100% { background: #050505; }
+}
 </style>
 </head>
 <body>
 
-<div class="hint">tap it</div>
-<div class="cracker">🧨</div>
-<div class="flash"></div>
+<div id="hint">tap the firework</div>
+<div id="launcher">🎆</div>
+<canvas id="canvas"></canvas>
 
-<div class="message">
-  <!-- EDIT YOUR MESSAGE HERE LATER -->
-  <div>
-    <p>Your message goes here.</p>
-  </div>
+<div id="message">
+  <!-- 👇 EDIT MESSAGE LATER HERE -->
+  Happy New Year ✨<br>
+  This moment was meant for you.
 </div>
 
 <script>
-  const cracker = document.querySelector('.cracker');
-  const hint = document.querySelector('.hint');
-  const flash = document.querySelector('.flash');
-  const message = document.querySelector('.message');
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-  let activated = false;
+let particles = [];
+let launched = false;
 
-  cracker.addEventListener('click', () => {
-    if (activated) return;
-    activated = true;
-    hint.style.opacity = 0;
+function random(min, max) {
+  return Math.random() * (max - min) + min;
+}
 
-    createSparks(cracker);
+function createFirework(x, y) {
+  for (let i = 0; i < 120; i++) {
+    particles.push({
+      x, y,
+      angle: random(0, Math.PI * 2),
+      speed: random(2, 6),
+      radius: 2,
+      alpha: 1,
+      decay: random(0.01, 0.02)
+    });
+  }
+}
 
-    let moves = 0;
-    const moveInterval = setInterval(() => {
-      moves++;
-      const x = Math.random() * (window.innerWidth - 60);
-      const y = Math.random() * (window.innerHeight - 200);
-      cracker.style.left = x + 'px';
-      cracker.style.top = y + 'px';
-      cracker.style.bottom = 'auto';
-      createSparks(cracker);
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (moves > 6) {
-        clearInterval(moveInterval);
-        explode();
-      }
-    }, 300);
+  particles.forEach((p, i) => {
+    p.x += Math.cos(p.angle) * p.speed;
+    p.y += Math.sin(p.angle) * p.speed;
+    p.alpha -= p.decay;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 215, 150, ${p.alpha})`;
+    ctx.fill();
+
+    if (p.alpha <= 0) particles.splice(i, 1);
   });
 
-  function explode() {
-    cracker.style.left = '50%';
-    cracker.style.top = '50%';
-    cracker.style.transform = 'translate(-50%, -50%) scale(1.3)';
+  requestAnimationFrame(animate);
+}
 
-    setTimeout(() => {
-      flash.style.opacity = 1;
-      document.body.classList.add('shake');
-    }, 200);
+animate();
 
-    setTimeout(() => {
-      flash.style.opacity = 0;
-      cracker.style.display = 'none';
-      message.style.opacity = 1;
-    }, 600);
-  }
+document.getElementById("launcher").addEventListener("click", () => {
+  if (launched) return;
+  launched = true;
 
-  function createSparks(element) {
-    const rect = element.getBoundingClientRect();
-    for (let i = 0; i < 12; i++) {
-      const spark = document.createElement('div');
-      spark.className = 'spark';
-      spark.style.left = rect.left + rect.width / 2 + 'px';
-      spark.style.top = rect.top + rect.height / 2 + 'px';
-      spark.style.setProperty('--x', (Math.random() * 60 - 30) + 'px');
-      spark.style.setProperty('--y', (Math.random() * 60 - 30) + 'px');
-      document.body.appendChild(spark);
-      setTimeout(() => spark.remove(), 600);
+  document.getElementById("hint").style.display = "none";
+  document.getElementById("launcher").style.display = "none";
+
+  let rocketY = canvas.height;
+  const rocketX = canvas.width / 2;
+
+  const rocketInterval = setInterval(() => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    rocketY -= 12;
+
+    ctx.beginPath();
+    ctx.arc(rocketX, rocketY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+
+    if (rocketY <= canvas.height / 2) {
+      clearInterval(rocketInterval);
+      createFirework(rocketX, rocketY);
+      document.body.classList.add("flash");
+
+      setTimeout(() => {
+        document.body.classList.remove("flash");
+        document.getElementById("message").style.opacity = 1;
+      }, 500);
     }
-  }
+  }, 16);
+});
 </script>
 
 </body>
