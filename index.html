@@ -1,37 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Happy New Year</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>New Year Fireworks</title>
 
 <style>
 html, body {
   margin: 0;
   padding: 0;
-  background: #000;
+  background: #050505;
   overflow: hidden;
   height: 100%;
-  font-family: 'Georgia', serif;
-}
-
-#hint {
-  position: absolute;
-  bottom: 140px;
-  width: 100%;
-  text-align: center;
-  color: #777;
-  font-size: 14px;
-}
-
-#rocket {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 48px;
-  cursor: pointer;
-  filter: drop-shadow(0 0 10px yellow);
+  touch-action: manipulation;
+  font-family: 'Arial', sans-serif;
 }
 
 canvas {
@@ -45,90 +27,110 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: #ffe066;
-  font-size: 22px;
+  color: #ffd966;
+  font-size: 1.6rem;
   text-align: center;
   opacity: 0;
   transition: opacity 2s ease;
-  padding: 20px;
-  line-height: 1.5;
+  z-index: 5;
+  pointer-events: none;
 }
 </style>
 </head>
 
 <body>
 
-<div id="hint">tap the rocket</div>
-<div id="rocket">🚀</div>
 <canvas id="canvas"></canvas>
-
 <div id="message">
-  Your message goes here.<br>
-  (you can edit this later 🤍)
+  <!-- EDIT THIS LATER -->
+  Happy New Year ✨
 </div>
 
-<audio id="boom">
-  <source src="https://assets.mixkit.co/sfx/preview/mixkit-firework-explosion-1703.mp3">
+<audio id="boom" preload="auto">
+  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_7c0b2c69d7.mp3" type="audio/mpeg">
 </audio>
 
 <script>
-const rocket = document.getElementById("rocket");
-const hint = document.getElementById("hint");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const boom = document.getElementById("boom");
-const message = document.getElementById("message");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
+let launched = false;
+let rocketY = canvas.height + 40;
+let rocketX = canvas.width / 2;
+let targetY = canvas.height / 2;
 let particles = [];
 
-rocket.addEventListener("click", () => {
-  hint.style.display = "none";
-  boom.play();
+function drawRocket() {
+  ctx.fillStyle = "#ffd966";
+  ctx.beginPath();
+  ctx.rect(rocketX - 2, rocketY, 4, 20);
+  ctx.fill();
 
-  rocket.style.transition = "transform 2.5s linear";
-  rocket.style.transform = "translate(-50%, -400px)";
+  ctx.beginPath();
+  ctx.moveTo(rocketX - 6, rocketY + 20);
+  ctx.lineTo(rocketX + 6, rocketY + 20);
+  ctx.lineTo(rocketX, rocketY + 30);
+  ctx.fill();
+}
 
-  setTimeout(() => {
-    rocket.style.display = "none";
-    createHeartFirework(canvas.width / 2, canvas.height / 2);
-    setTimeout(() => message.style.opacity = 1, 1200);
-  }, 2500);
-});
-
-function createHeartFirework(x, y) {
+function createHeart(x, y) {
   for (let i = 0; i < 120; i++) {
-    const angle = i * 0.15;
-    const radius = 12 * (1 - Math.sin(angle));
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 4 + 2;
     particles.push({
       x,
       y,
-      vx: Math.cos(angle) * radius * 1.2,
-      vy: Math.sin(angle) * radius * 1.2,
-      life: 100
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 120
     });
   }
 }
 
 function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (launched && rocketY > targetY) {
+    rocketY -= 2; // SLOW rocket
+    drawRocket();
+  }
+
   particles.forEach((p, i) => {
-    p.x += p.vx * 0.08;
-    p.y += p.vy * 0.08;
+    p.x += p.vx;
+    p.y += p.vy;
     p.life--;
-
+    ctx.fillStyle = "rgba(255, 215, 100, 0.8)";
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 215, 0, ${p.life / 100})`;
+    ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
     ctx.fill();
-
     if (p.life <= 0) particles.splice(i, 1);
   });
+
   requestAnimationFrame(animate);
 }
+
+canvas.addEventListener("click", () => {
+  if (launched) return;
+  launched = true;
+
+  const interval = setInterval(() => {
+    if (rocketY <= targetY) {
+      clearInterval(interval);
+      document.getElementById("boom").play();
+      createHeart(rocketX, targetY);
+      document.getElementById("message").style.opacity = 1;
+    }
+  }, 16);
+});
+
 animate();
+
+window.addEventListener("resize", () => {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+});
 </script>
 
 </body>
