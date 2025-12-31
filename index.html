@@ -17,20 +17,18 @@ html, body {
   font-family: 'Dancing Script', cursive;
 }
 
-/* 🔥 CANVAS */
 canvas {
   position: fixed;
   inset: 0;
   z-index: 1;
 }
 
-/* UI */
 #hint, #tapHint, #message, #secondMessage, #timestamp, #endBtn {
   position: fixed;
   z-index: 5;
 }
 
-/* First hint */
+/* Hints */
 #hint {
   bottom: 80px;
   width: 100%;
@@ -39,12 +37,11 @@ canvas {
   font-size: 16px;
 }
 
-/* Tap again hint */
 #tapHint {
-  bottom: 60px;
+  bottom: 25px;
   width: 100%;
   text-align: center;
-  font-size: 16px;
+  font-size: 15px;
   color: rgba(255,215,0,0.8);
   display: none;
   animation: pulse 1.5s infinite;
@@ -55,7 +52,7 @@ canvas {
   50% { opacity: 1; }
 }
 
-/* Message */
+/* Main message */
 #message {
   inset: 0;
   display: flex;
@@ -119,7 +116,7 @@ canvas {
   color: rgba(255,215,0,0.6);
 }
 
-/* End */
+/* End button */
 #endBtn {
   bottom: 50px;
   left: 50%;
@@ -148,7 +145,7 @@ canvas {
 <div id="timestamp"></div>
 <button id="endBtn">End</button>
 
-<audio id="fireSound">
+<audio id="fireSound" preload="auto">
   <source src="https://www.soundjay.com/misc/sounds/fireworks-1.mp3">
 </audio>
 
@@ -160,9 +157,29 @@ canvas.height = innerHeight;
 
 let rocketLaunched = false;
 let readyForNext = false;
+let secondPageShown = false;
 let particles = [];
 let rocket = null;
 
+/* 🔊 AUDIO UNLOCK */
+const fireSound = document.getElementById("fireSound");
+let audioUnlocked = false;
+function unlockAudio() {
+  if (!audioUnlocked) {
+    fireSound.play().then(() => {
+      fireSound.pause();
+      fireSound.currentTime = 0;
+      audioUnlocked = true;
+    }).catch(() => {});
+  }
+}
+
+window.addEventListener("resize", () => {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+});
+
+/* Fireworks */
 class Particle {
   constructor(x,y){
     const a=Math.random()*Math.PI*2;
@@ -189,9 +206,11 @@ class Particle {
 }
 
 function explode(x,y){
-  for(let i=0;i<120;i++)particles.push(new Particle(x,y));
-  fireSound.currentTime=0;
-  fireSound.play();
+  for(let i=0;i<120;i++) particles.push(new Particle(x,y));
+  if (audioUnlocked) {
+    fireSound.currentTime = 0;
+    fireSound.play();
+  }
 }
 
 function animate(){
@@ -215,25 +234,29 @@ function animate(){
 }
 animate();
 
-canvas.onclick=()=>{
+/* Click handling */
+canvas.onclick = () => {
+  unlockAudio();
+
   if(!rocketLaunched){
     rocketLaunched=true;
     hint.style.display="none";
     rocket={x:canvas.width/2,y:canvas.height-40};
-  } else if(readyForNext){
+  } else if(readyForNext && !secondPageShown){
     showSecond();
   }
 };
 
-/* TEXT */
-const text=`Happpy New yearrrrr Riaaaa❤️🍾🎉
+/* MESSAGE */
+const text = `Happpy New yearrrrr Riaaaa❤️🍾🎉
 I don’t wish for grand things this year. I just wish for more of us...more conversations that last longer than planned, more moments that feel simple but mean everything, more reasons to smile because you exist.
 
 If this year taught me anything, it’s that love doesn’t have to be loud to be real.
 Sometimes it’s just choosing the same person again, even as the calendar changes.
 
-Thank you for making my days and nights brighter. Let’s just leave all the bad stuff behind and start 2026 fresh, with more us
+Let’s just leave all the bad stuff behind and start 2026 fresh, with more us.
 
+Thank you for making my days and nights happier.
 So here’s to a new year…one I’m grateful to begin with you in my heart.
 
 With Love❤️,
@@ -245,10 +268,12 @@ function showMessage(){
   function type(){
     if(i<text.length){
       message.textContent+=text[i++];
-      setTimeout(type,60);
+      setTimeout(type,55);
     } else {
-      tapHint.style.display="block";
-      readyForNext=true;
+      setTimeout(()=>{
+        tapHint.style.display="block";
+        readyForNext=true;
+      },600);
     }
   }
   type();
@@ -256,25 +281,33 @@ function showMessage(){
 
 /* SECOND PAGE */
 function showSecond(){
+  if(secondPageShown) return;
+  secondPageShown=true;
+
   tapHint.style.display="none";
   message.style.display="none";
-  secondMessage.textContent="I LOVE YOU SOOO MUUCHH ❤️❤️❤️";
+
+  secondMessage.textContent="I LOVE YOU SOOO MUUCHH RIAAAA ❤️";
   secondMessage.classList.add("show");
 
-  for(let i=0;i<30;i++){
+  spawnHearts();
+  setTimeout(()=>endBtn.style.display="block",6000);
+}
+
+/* Hearts spawn once */
+function spawnHearts(){
+  for(let i=0;i<35;i++){
     const h=document.createElement("div");
     h.className="heart";
     h.textContent="❤";
     h.style.left=Math.random()*100+"vw";
-    h.style.bottom=Math.random()*50+"px";
+    h.style.bottom=Math.random()*100+"vh";
     h.style.animationDelay=Math.random()*5+"s";
     document.body.appendChild(h);
   }
-
-  setTimeout(()=>endBtn.style.display="block",6000);
 }
 
-/* TIME */
+/* Time */
 setInterval(()=>{
   timestamp.textContent=new Date().toLocaleString();
 },1000);
