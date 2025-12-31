@@ -14,11 +14,19 @@ html, body {
   background: black;
   overflow: hidden;
   height: 100%;
-  touch-action: manipulation;
+  font-family: 'Playfair Display', serif;
 }
 
-canvas {
-  display: block;
+canvas { display: block; }
+
+#hint {
+  position: absolute;
+  bottom: 70px;
+  width: 100%;
+  text-align: center;
+  color: rgba(255,255,255,0.6);
+  font-size: 14px;
+  letter-spacing: 2px;
 }
 
 #message {
@@ -28,31 +36,60 @@ canvas {
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-family: 'Playfair Display', serif;
+  color: #ffe9a8;
   font-size: 26px;
   padding: 30px;
-  color: #f5e6b8;
-  text-shadow: 0 0 15px rgba(255,220,150,0.35);
   opacity: 0;
+  pointer-events: none;
+  text-shadow: 0 0 15px rgba(255,215,120,0.4);
 }
 
-#typed {
-  max-width: 90%;
+#love {
+  position: absolute;
+  top: 55%;
+  width: 100%;
+  text-align: center;
+  font-size: 28px;
+  color: #ffd87d;
+  opacity: 0;
+  text-shadow: 0 0 20px rgba(255,215,120,0.5);
 }
 
+#time {
+  position: absolute;
+  bottom: 10px;
+  width: 100%;
+  text-align: center;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+}
+
+#endBtn {
+  position: absolute;
+  bottom: 40px;
+  right: 20px;
+  padding: 8px 14px;
+  background: rgba(255,215,120,0.15);
+  color: #ffe9a8;
+  border: 1px solid rgba(255,215,120,0.3);
+  border-radius: 20px;
+  display: none;
+}
 </style>
 </head>
 
 <body>
 
 <canvas id="canvas"></canvas>
+<div id="hint">tap anywhere</div>
 
-<div id="message">
-  <div id="typed"></div>
-</div>
+<div id="message"></div>
+<div id="love">I love you Riaaaa</div>
+<div id="time"></div>
+<button id="endBtn">End</button>
 
-<audio id="sound">
-  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_7a9b4bbd0d.mp3" type="audio/mpeg">
+<audio id="boom" preload="auto">
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_8d6d98e7f3.mp3">
 </audio>
 
 <script>
@@ -61,32 +98,15 @@ const ctx = canvas.getContext("2d");
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-let tapped = false;
+let launched = false;
+let rocketY = canvas.height + 40;
 let particles = [];
-let fireworksText = [];
-let showText = false;
+let phase = 0;
 
-const messageText =
-"Happy New Year 🤍\n\nSome moments feel like fireworks.\nSome feel like home.";
+const gold = "#ffd87d";
 
-function resize() {
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
-}
-window.addEventListener("resize", resize);
-
-// Rocket
-let rocket = {
-  x: canvas.width / 2,
-  y: canvas.height + 40,
-  vy: -3
-};
-
-// Heart particle
 class Particle {
-  constructor(x, y, size = 1) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = Math.random() * 3 + 1.5;
+  constructor(x, y, angle, speed, size) {
     this.x = x;
     this.y = y;
     this.vx = Math.cos(angle) * speed;
@@ -94,113 +114,98 @@ class Particle {
     this.alpha = 1;
     this.size = size;
   }
-
   update() {
     this.x += this.vx;
     this.y += this.vy;
-    this.vy += 0.02;
+    this.vy += 0.03;
     this.alpha -= 0.012;
   }
-
   draw() {
-    ctx.save();
     ctx.globalAlpha = this.alpha;
-    ctx.fillStyle = "#f5d98c";
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = "#f5d98c";
-    drawHeart(this.x, this.y, this.size);
-    ctx.restore();
+    ctx.fillStyle = gold;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 }
 
-function drawHeart(x, y, s) {
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.bezierCurveTo(x - 5*s, y - 5*s, x - 15*s, y + 5*s, x, y + 15*s);
-  ctx.bezierCurveTo(x + 15*s, y + 5*s, x + 5*s, y - 5*s, x, y);
-  ctx.fill();
-}
-
-function explode(x, y, count = 120) {
-  for (let i = 0; i < count; i++) {
-    particles.push(new Particle(x, y, Math.random() * 1.5 + 0.6));
+function heartExplosion(cx, cy, scale) {
+  for (let i = 0; i < 180; i++) {
+    let t = Math.random() * Math.PI * 2;
+    let r = scale * (1 - Math.sin(t));
+    let x = r * Math.cos(t);
+    let y = -r * Math.sin(t);
+    let angle = Math.atan2(y, x);
+    particles.push(new Particle(cx, cy, angle, Math.random()*4+2, Math.random()*2+1));
   }
 }
 
-function textFirework(text, yPos) {
-  ctx.font = "28px Playfair Display";
-  ctx.fillStyle = "#f5e6b8";
-  const startX = canvas.width / 2 - ctx.measureText(text).width / 2;
-  fireworksText.push({ text, x: startX, y: yPos, alpha: 1 });
-}
-
-function typeText(text) {
-  const el = document.getElementById("typed");
+function typeText(el, text, delay = 40) {
+  el.textContent = "";
   let i = 0;
-  el.innerHTML = "";
-  const interval = setInterval(() => {
-    el.innerHTML += text[i] === "\n" ? "<br>" : text[i];
+  el.style.opacity = 1;
+  let interval = setInterval(() => {
+    el.textContent += text[i];
     i++;
     if (i >= text.length) clearInterval(interval);
-  }, 45);
+  }, delay);
 }
 
 function animate() {
   ctx.fillStyle = "rgba(0,0,0,0.25)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  if (rocket) {
-    rocket.y += rocket.vy;
+  if (launched && phase === 0) {
+    rocketY -= 2;
+    ctx.fillStyle = gold;
+    ctx.fillRect(canvas.width/2 - 2, rocketY, 4, 14);
 
-    ctx.fillStyle = "#f5d98c";
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = "#f5d98c";
-    ctx.fillRect(rocket.x - 2, rocket.y - 12, 4, 12);
-
-    if (rocket.y < canvas.height / 2) {
-      explode(rocket.x, rocket.y, 160);
-      setTimeout(() => explode(rocket.x - 60, rocket.y + 20, 120), 400);
-      setTimeout(() => explode(rocket.x + 60, rocket.y + 20, 120), 800);
-
-      setTimeout(() => {
-        textFirework("I love you Riaaaa", canvas.height / 2 - 80);
-      }, 1300);
+    if (rocketY < canvas.height/2) {
+      phase = 1;
+      navigator.vibrate?.(30);
+      document.getElementById("boom").play();
+      for (let i = 0; i < 3; i++)
+        setTimeout(() => heartExplosion(canvas.width/2, canvas.height/2, 40 + i*20), i*300);
 
       setTimeout(() => {
-        document.getElementById("message").style.opacity = 1;
-        typeText(messageText);
-      }, 1800);
+        typeText(
+          document.getElementById("message"),
+          "Happy New Year 🤍"
+        );
+      }, 700);
 
-      rocket = null;
+      setTimeout(() => {
+        document.getElementById("love").style.opacity = 1;
+        heartExplosion(canvas.width/2, canvas.height/2 - 80, 60);
+        navigator.vibrate?.(20);
+      }, 2200);
+
+      setTimeout(() => {
+        document.getElementById("endBtn").style.display = "block";
+      }, 3500);
     }
   }
 
   particles = particles.filter(p => p.alpha > 0);
-  particles.forEach(p => {
-    p.update();
-    p.draw();
-  });
-
-  fireworksText.forEach(t => {
-    ctx.globalAlpha = t.alpha;
-    ctx.font = "28px Playfair Display";
-    ctx.fillStyle = "#f5e6b8";
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = "#f5d98c";
-    ctx.fillText(t.text, t.x, t.y);
-    t.alpha -= 0.01;
-  });
+  particles.forEach(p => { p.update(); p.draw(); });
 
   requestAnimationFrame(animate);
 }
 
 canvas.addEventListener("click", () => {
-  if (tapped) return;
-  tapped = true;
-
-  document.getElementById("sound").play().catch(()=>{});
-  rocket.y = canvas.height + 40;
+  if (launched) return;
+  launched = true;
+  document.getElementById("hint").style.display = "none";
 });
+
+document.getElementById("endBtn").onclick = () => {
+  document.body.style.transition = "opacity 1.5s";
+  document.body.style.opacity = 0;
+};
+
+document.getElementById("time").textContent =
+  new Date().toLocaleString();
 
 animate();
 </script>
