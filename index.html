@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Happy New Year</title>
 
 <style>
@@ -12,7 +12,6 @@ html, body {
   background: #050505;
   overflow: hidden;
   height: 100%;
-  touch-action: manipulation;
 }
 
 canvas {
@@ -21,13 +20,13 @@ canvas {
 
 #hint {
   position: absolute;
-  bottom: 90px;
+  bottom: 70px;
   width: 100%;
   text-align: center;
   color: rgba(255,255,255,0.6);
-  font-family: system-ui, sans-serif;
+  font-family: sans-serif;
   font-size: 14px;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
 }
 
 #message {
@@ -37,19 +36,18 @@ canvas {
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #fff8dc;
+  color: #ffe9b5;
   font-family: 'Georgia', serif;
-  font-size: 24px;
+  font-size: 26px;
   padding: 30px;
   opacity: 0;
-  pointer-events: none;
-  text-shadow:
-    0 0 10px rgba(255,215,150,0.6),
-    0 0 25px rgba(255,200,120,0.4);
   transition: opacity 2s ease;
+  text-shadow: 0 0 15px rgba(255,215,120,0.8);
+  pointer-events: none;
+  z-index: 10;
 }
 
-.show {
+#message.show {
   opacity: 1;
 }
 </style>
@@ -65,8 +63,8 @@ canvas {
   Happy New Year 🤍
 </div>
 
-<audio id="sound">
-  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_7b0c54c7c1.mp3" type="audio/mpeg">
+<audio id="boom" preload="auto">
+  <source src="https://assets.mixkit.co/sfx/preview/mixkit-firework-explosion-1700.mp3" type="audio/mpeg">
 </audio>
 
 <script>
@@ -75,13 +73,11 @@ const ctx = canvas.getContext("2d");
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-const centerX = canvas.width / 2;
-const centerY = canvas.height / 2;
-
 let launched = false;
-let rocket = null;
+let rocketY = canvas.height + 50;
 let particles = [];
-let stars = [];
+
+const GOLD = "rgba(255,215,130,";
 
 function resize() {
   canvas.width = innerWidth;
@@ -89,107 +85,84 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 
-/* 🌙 STAR BACKGROUND */
-for (let i = 0; i < 120; i++) {
-  stars.push({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    r: Math.random() * 1.5
-  });
-}
-
-/* 💛 HEART PARTICLE */
-class HeartParticle {
-  constructor(x, y) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = Math.random() * 3 + 1.5;
+class Particle {
+  constructor(x, y, size) {
+    const t = Math.random() * Math.PI * 2;
+    const r = Math.random() * size;
+    this.vx = r * Math.cos(t);
+    this.vy = r * Math.sin(t);
     this.x = x;
     this.y = y;
-    this.vx = Math.cos(angle) * speed;
-    this.vy = Math.sin(angle) * speed;
-    this.alpha = 1;
-    this.size = Math.random() * 4 + 3;
+    this.life = 1;
   }
 
   update() {
     this.x += this.vx;
     this.y += this.vy;
-    this.vy += 0.02;
-    this.alpha -= 0.01;
+    this.vy += 0.015;
+    this.life -= 0.01;
   }
 
   draw() {
-    ctx.save();
-    ctx.globalAlpha = this.alpha;
-    ctx.fillStyle = "#ffd9a0";
+    ctx.globalAlpha = this.life;
+    ctx.fillStyle = GOLD + this.life + ")";
     ctx.beginPath();
-    ctx.moveTo(this.x, this.y);
-    ctx.bezierCurveTo(
-      this.x - this.size, this.y - this.size,
-      this.x - this.size * 2, this.y + this.size,
-      this.x, this.y + this.size * 2
-    );
-    ctx.bezierCurveTo(
-      this.x + this.size * 2, this.y + this.size,
-      this.x + this.size, this.y - this.size,
-      this.x, this.y
-    );
+    ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
+    ctx.globalAlpha = 1;
   }
 }
 
-/* 💥 MULTIPLE HEART EXPLOSIONS */
-function explode(x, y, delay = 0) {
-  setTimeout(() => {
-    for (let i = 0; i < 80; i++) {
-      particles.push(new HeartParticle(x, y));
-    }
-    if (navigator.vibrate) navigator.vibrate(40);
-  }, delay);
+function heartExplosion(x, y, size) {
+  for (let i = 0; i < 140; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = size * (1 - Math.sin(angle));
+    const px = x + r * Math.cos(angle);
+    const py = y - r * Math.sin(angle);
+    particles.push(new Particle(px, py, size));
+  }
 }
 
-/* 🎆 ANIMATION LOOP */
+function explodeSequence(x, y) {
+  const boom = document.getElementById("boom");
+  boom.currentTime = 0;
+  boom.play();
+
+  if (navigator.vibrate) navigator.vibrate([100, 50, 200]);
+
+  heartExplosion(x, y, 4);
+  setTimeout(() => heartExplosion(x, y, 6), 300);
+  setTimeout(() => heartExplosion(x, y, 8), 700);
+
+  setTimeout(() => {
+    document.getElementById("message").classList.add("show");
+  }, 1200);
+}
+
 function animate() {
   ctx.fillStyle = "rgba(0,0,0,0.25)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // stars
-  ctx.fillStyle = "#ffffff";
-  stars.forEach(s => {
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // rocket
-  if (rocket) {
-    rocket.y += rocket.vy;
+  if (launched && rocketY > canvas.height / 2) {
+    rocketY -= 3; // slow rocket
 
     // trail glow
-    ctx.fillStyle = "rgba(255,215,150,0.7)";
+    ctx.fillStyle = "rgba(255,200,100,0.6)";
     ctx.beginPath();
-    ctx.arc(rocket.x, rocket.y + 12, 5, 0, Math.PI * 2);
+    ctx.arc(canvas.width/2, rocketY + 15, 6, 0, Math.PI*2);
     ctx.fill();
 
-    // rocket body
-    ctx.fillStyle = "#fff5cc";
-    ctx.fillRect(rocket.x - 3, rocket.y - 16, 6, 16);
+    // rocket core
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(canvas.width/2 - 2, rocketY - 12, 4, 14);
 
-    if (rocket.y <= centerY) {
-      explode(centerX, centerY, 0);
-      explode(centerX - 60, centerY + 20, 350);
-      explode(centerX + 60, centerY + 20, 700);
-
-      setTimeout(() => {
-        document.getElementById("message").classList.add("show");
-      }, 1200);
-
-      rocket = null;
+    if (rocketY <= canvas.height / 2) {
+      explodeSequence(canvas.width/2, canvas.height/2);
+      launched = false;
     }
   }
 
-  particles = particles.filter(p => p.alpha > 0);
+  particles = particles.filter(p => p.life > 0);
   particles.forEach(p => {
     p.update();
     p.draw();
@@ -198,20 +171,12 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-/* 🚀 START ON TAP */
 canvas.addEventListener("click", () => {
-  if (launched) return;
-  launched = true;
-  document.getElementById("hint").style.display = "none";
-
-  rocket = {
-    x: centerX,
-    y: canvas.height + 30,
-    vy: -3   // slower rocket
-  };
-
-  document.getElementById("sound").play();
-  if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+  if (!launched) {
+    launched = true;
+    rocketY = canvas.height + 40;
+    document.getElementById("hint").style.display = "none";
+  }
 });
 
 animate();
