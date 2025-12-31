@@ -17,24 +17,20 @@ html, body {
   font-family: 'Dancing Script', cursive;
 }
 
-/* 🔥 CANVAS AT THE BACK */
+/* 🔥 CANVAS */
 canvas {
   position: fixed;
   inset: 0;
   z-index: 1;
 }
 
-/* 🔝 UI LAYERS ABOVE CANVAS */
-#hint,
-#message,
-#secondMessage,
-#timestamp,
-#endBtn {
+/* UI */
+#hint, #tapHint, #message, #secondMessage, #timestamp, #endBtn {
   position: fixed;
   z-index: 5;
 }
 
-/* Hint */
+/* First hint */
 #hint {
   bottom: 80px;
   width: 100%;
@@ -43,7 +39,23 @@ canvas {
   font-size: 16px;
 }
 
-/* Main message */
+/* Tap again hint */
+#tapHint {
+  bottom: 60px;
+  width: 100%;
+  text-align: center;
+  font-size: 16px;
+  color: rgba(255,215,0,0.8);
+  display: none;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: .4; }
+  50% { opacity: 1; }
+}
+
+/* Message */
 #message {
   inset: 0;
   display: flex;
@@ -55,34 +67,47 @@ canvas {
   padding: 30px;
   opacity: 0;
   white-space: pre-wrap;
-  text-shadow:
-    0 0 10px rgba(255,215,0,0.6),
-    0 0 25px rgba(255,215,0,0.4);
+  text-shadow: 0 0 20px rgba(255,215,0,0.6);
   transition: opacity 1s ease;
   pointer-events: none;
 }
 
-#message.show {
-  opacity: 1;
-}
+#message.show { opacity: 1; }
 
-/* Second page text */
+/* Second page */
 #secondMessage {
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
+  text-align: center;
+  font-size: 42px;
   color: #FFD700;
   opacity: 0;
-  text-shadow:
-    0 0 15px rgba(255,215,0,0.8),
-    0 0 40px rgba(255,215,0,0.5);
   pointer-events: none;
+  text-shadow: 0 0 30px rgba(255,215,0,0.8);
 }
 
-#secondMessage.show {
-  opacity: 1;
+#secondMessage.show { opacity: 1; }
+
+/* Hearts */
+.heart {
+  position: fixed;
+  color: rgba(255,105,180,0.7);
+  font-size: 20px;
+  animation: float 6s infinite ease-in-out, glow 2s infinite alternate;
+  z-index: 2;
+}
+
+@keyframes float {
+  0% { transform: translateY(0); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-120px); opacity: 0; }
+}
+
+@keyframes glow {
+  from { text-shadow: 0 0 5px pink; }
+  to { text-shadow: 0 0 20px hotpink; }
 }
 
 /* Timestamp */
@@ -94,7 +119,7 @@ canvas {
   color: rgba(255,215,0,0.6);
 }
 
-/* End button */
+/* End */
 #endBtn {
   bottom: 50px;
   left: 50%;
@@ -115,16 +140,16 @@ canvas {
 <canvas id="canvas"></canvas>
 
 <div id="hint">Tap anywhereeee to launch</div>
+<div id="tapHint">Tap again to continue 💛</div>
 
 <div id="message"></div>
-
 <div id="secondMessage"></div>
 
 <div id="timestamp"></div>
 <button id="endBtn">End</button>
 
-<audio id="fireSound" preload="auto">
-  <source src="https://www.soundjay.com/misc/sounds/fireworks-1.mp3" type="audio/mpeg">
+<audio id="fireSound">
+  <source src="https://www.soundjay.com/misc/sounds/fireworks-1.mp3">
 </audio>
 
 <script>
@@ -134,144 +159,126 @@ canvas.width = innerWidth;
 canvas.height = innerHeight;
 
 let rocketLaunched = false;
+let readyForNext = false;
 let particles = [];
 let rocket = null;
 
-window.addEventListener("resize", () => {
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
-});
-
 class Particle {
-  constructor(x, y) {
-    const a = Math.random() * Math.PI * 2;
-    const s = Math.random() * 4 + 2;
-    this.x = x;
-    this.y = y;
-    this.vx = Math.cos(a) * s;
-    this.vy = Math.sin(a) * s;
-    this.alpha = 1;
-    this.size = Math.random() * 3 + 2;
+  constructor(x,y){
+    const a=Math.random()*Math.PI*2;
+    const s=Math.random()*4+2;
+    this.x=x;this.y=y;
+    this.vx=Math.cos(a)*s;
+    this.vy=Math.sin(a)*s;
+    this.alpha=1;
   }
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.vy += 0.04;
-    this.alpha -= 0.015;
+  update(){
+    this.x+=this.vx;
+    this.y+=this.vy;
+    this.vy+=0.04;
+    this.alpha-=0.015;
   }
-  draw() {
-    ctx.globalAlpha = this.alpha;
-    ctx.fillStyle = "#FFD700";
+  draw(){
+    ctx.globalAlpha=this.alpha;
+    ctx.fillStyle="#FFD700";
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.arc(this.x,this.y,3,0,Math.PI*2);
     ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha=1;
   }
 }
 
-function explode(x, y) {
-  for (let i = 0; i < 150; i++) {
-    particles.push(new Particle(x, y));
-  }
-  if (navigator.vibrate) navigator.vibrate(40);
-  const s = document.getElementById("fireSound");
-  s.currentTime = 0;
-  s.play();
+function explode(x,y){
+  for(let i=0;i<120;i++)particles.push(new Particle(x,y));
+  fireSound.currentTime=0;
+  fireSound.play();
 }
 
-function animate() {
-  ctx.fillStyle = "rgba(0,0,0,0.2)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+function animate(){
+  ctx.fillStyle="rgba(0,0,0,0.2)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  if (rocket) {
-    rocket.y -= 3;
-    ctx.fillStyle = "white";
-    ctx.fillRect(rocket.x - 2, rocket.y - 12, 4, 12);
-    ctx.fillStyle = "orange";
-    ctx.beginPath();
-    ctx.arc(rocket.x, rocket.y + 10, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (rocket.y < canvas.height / 3) {
-      explode(rocket.x, rocket.y);
-      rocket = null;
-      setTimeout(showMessage, 800);
+  if(rocket){
+    rocket.y-=3;
+    ctx.fillStyle="white";
+    ctx.fillRect(rocket.x-2,rocket.y-10,4,10);
+    if(rocket.y<canvas.height/3){
+      explode(rocket.x,rocket.y);
+      rocket=null;
+      setTimeout(showMessage,800);
     }
   }
 
-  particles = particles.filter(p => p.alpha > 0);
-  particles.forEach(p => { p.update(); p.draw(); });
-
+  particles=particles.filter(p=>p.alpha>0);
+  particles.forEach(p=>{p.update();p.draw();});
   requestAnimationFrame(animate);
 }
 animate();
 
-canvas.addEventListener("click", () => {
-  if (!rocketLaunched) {
-    rocketLaunched = true;
-    document.getElementById("hint").style.display = "none";
-    rocket = { x: canvas.width / 2, y: canvas.height - 40 };
+canvas.onclick=()=>{
+  if(!rocketLaunched){
+    rocketLaunched=true;
+    hint.style.display="none";
+    rocket={x:canvas.width/2,y:canvas.height-40};
+  } else if(readyForNext){
+    showSecond();
   }
-});
+};
 
-/* 📝 TEXT TYPING */
-const text = `Happpy New yearrrrr Riaaaa❤️🍾🎉 
+/* TEXT */
+const text=`Happpy New yearrrrr Riaaaa❤️🍾🎉
 I don’t wish for grand things this year. I just wish for more of us...more conversations that last longer than planned, more moments that feel simple but mean everything, more reasons to smile because you exist.
 
-If this year taught me anything, it’s that love doesn’t have to be loud to be real. Sometimes it’s just choosing the same person again, even as the calendar changes.
-I wish that
-I will be able
-to make you
-happy for the rest of my lif4.
+If this year taught me anything, it’s that love doesn’t have to be loud to be real.
+Sometimes it’s just choosing the same person again, even as the calendar changes.
 
-Thank u for making my days and nights happier.
-So here’s to a new year...one I’m grateful to begin with you in my heart.
+Thank you for making my days and nights brighter.
+So here’s to a new year…one I’m grateful to begin with you in my heart.
+
 With Love❤️,
 Aaron`;
 
-function showMessage() {
-  const box = document.getElementById("message");
-  box.classList.add("show");
-  let i = 0;
-  function type() {
-    if (i < text.length) {
-      box.textContent += text[i++];
-      setTimeout(type, 35);
+function showMessage(){
+  message.classList.add("show");
+  let i=0;
+  function type(){
+    if(i<text.length){
+      message.textContent+=text[i++];
+      setTimeout(type,35);
     } else {
-      setTimeout(showSecond, 1200);
+      tapHint.style.display="block";
+      readyForNext=true;
     }
   }
   type();
 }
 
-/* ❤️ SECOND PAGE */
-function showSecond() {
-  document.getElementById("message").style.display = "none";
-  const s = document.getElementById("secondMessage");
-  s.textContent = "I love you SOOO MUUCHH RIAAAA";
-  s.classList.add("show");
+/* SECOND PAGE */
+function showSecond(){
+  tapHint.style.display="none";
+  message.style.display="none";
+  secondMessage.textContent="I LOVE YOU SOOO MUUCHH RIAAAA ❤️";
+  secondMessage.classList.add("show");
 
-  const interval = setInterval(() => {
-    explode(
-      Math.random() * canvas.width,
-      Math.random() * canvas.height / 2
-    );
-  }, 350);
+  for(let i=0;i<30;i++){
+    const h=document.createElement("div");
+    h.className="heart";
+    h.textContent="❤";
+    h.style.left=Math.random()*100+"vw";
+    h.style.bottom=Math.random()*50+"px";
+    h.style.animationDelay=Math.random()*5+"s";
+    document.body.appendChild(h);
+  }
 
-  setTimeout(() => {
-    clearInterval(interval);
-    document.getElementById("endBtn").style.display = "block";
-  }, 5000);
+  setTimeout(()=>endBtn.style.display="block",6000);
 }
 
-/* ⏰ TIMESTAMP */
-setInterval(() => {
-  document.getElementById("timestamp").textContent =
-    new Date().toLocaleString();
-}, 1000);
+/* TIME */
+setInterval(()=>{
+  timestamp.textContent=new Date().toLocaleString();
+},1000);
 
-/* 🔁 END */
-document.getElementById("endBtn").onclick = () => location.reload();
+endBtn.onclick=()=>location.reload();
 </script>
 
 </body>
