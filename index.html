@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Happy New Year</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+<!-- Font -->
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
 html, body {
@@ -14,83 +15,86 @@ html, body {
   background: black;
   overflow: hidden;
   height: 100%;
-  font-family: 'Playfair Display', serif;
+  touch-action: manipulation;
+  font-family: 'Dancing Script', cursive;
 }
 
-canvas { display: block; }
+canvas {
+  display: block;
+}
 
 #hint {
   position: absolute;
-  bottom: 70px;
+  bottom: 80px;
   width: 100%;
   text-align: center;
-  color: rgba(255,255,255,0.6);
-  font-size: 14px;
-  letter-spacing: 2px;
+  color: rgba(255,215,0,0.6);
+  font-size: 16px;
 }
 
-#message {
+#message, #secondMessage {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #ffe9a8;
-  font-size: 26px;
+  color: #FFD700;
+  font-size: 22px;
   padding: 30px;
   opacity: 0;
+  transition: opacity 1.5s ease;
+  text-shadow: 0 0 10px rgba(255,215,0,0.7);
   pointer-events: none;
-  text-shadow: 0 0 15px rgba(255,215,120,0.4);
+  white-space: pre-wrap;
 }
 
-#love {
-  position: absolute;
-  top: 55%;
-  width: 100%;
-  text-align: center;
-  font-size: 28px;
-  color: #ffd87d;
-  opacity: 0;
-  text-shadow: 0 0 20px rgba(255,215,120,0.5);
+.show {
+  opacity: 1;
 }
 
-#time {
+#timestamp {
   position: absolute;
-  bottom: 10px;
+  bottom: 20px;
   width: 100%;
   text-align: center;
-  color: rgba(255,255,255,0.4);
-  font-size: 12px;
+  color: rgba(255,215,0,0.7);
+  font-size: 14px;
 }
 
 #endBtn {
   position: absolute;
-  bottom: 40px;
-  right: 20px;
-  padding: 8px 14px;
-  background: rgba(255,215,120,0.15);
-  color: #ffe9a8;
-  border: 1px solid rgba(255,215,120,0.3);
-  border-radius: 20px;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  font-size: 16px;
+  color: #FFD700;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid #FFD700;
+  border-radius: 5px;
+  cursor: pointer;
   display: none;
 }
 </style>
 </head>
-
 <body>
 
 <canvas id="canvas"></canvas>
-<div id="hint">tap anywhere</div>
+<div id="hint">Tap anywhere to launch</div>
 
-<div id="message"></div>
-<div id="love">I love you Riaaaa</div>
-<div id="time"></div>
+<div id="message">
+<!-- Long message will type here -->
+</div>
+
+<div id="secondMessage">
+<!-- "I love you Riaaaa" fireworks -->
+</div>
+
+<div id="timestamp"></div>
 <button id="endBtn">End</button>
 
-<audio id="boom" preload="auto">
-  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_8d6d98e7f3.mp3">
-</audio>
+<audio id="fireSound" src="https://www.soundjay.com/misc/sounds/fireworks-1.mp3" preload="auto"></audio>
 
 <script>
 const canvas = document.getElementById("canvas");
@@ -98,116 +102,164 @@ const ctx = canvas.getContext("2d");
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-let launched = false;
-let rocketY = canvas.height + 40;
+let rocketLaunched = false;
 let particles = [];
-let phase = 0;
+let rocket = null;
 
-const gold = "#ffd87d";
+function resize() {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+}
+window.addEventListener("resize", resize);
 
 class Particle {
-  constructor(x, y, angle, speed, size) {
+  constructor(x, y, color, size=3) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 5 + 2;
     this.x = x;
     this.y = y;
     this.vx = Math.cos(angle) * speed;
     this.vy = Math.sin(angle) * speed;
     this.alpha = 1;
+    this.color = color;
     this.size = size;
   }
   update() {
     this.x += this.vx;
     this.y += this.vy;
-    this.vy += 0.03;
-    this.alpha -= 0.012;
+    this.vy += 0.05;
+    this.alpha -= 0.015;
   }
   draw() {
     ctx.globalAlpha = this.alpha;
-    ctx.fillStyle = gold;
+    ctx.fillStyle = this.color;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
 }
 
-function heartExplosion(cx, cy, scale) {
-  for (let i = 0; i < 180; i++) {
-    let t = Math.random() * Math.PI * 2;
-    let r = scale * (1 - Math.sin(t));
-    let x = r * Math.cos(t);
-    let y = -r * Math.sin(t);
-    let angle = Math.atan2(y, x);
-    particles.push(new Particle(cx, cy, angle, Math.random()*4+2, Math.random()*2+1));
-  }
-}
-
-function typeText(el, text, delay = 40) {
-  el.textContent = "";
-  let i = 0;
-  el.style.opacity = 1;
-  let interval = setInterval(() => {
-    el.textContent += text[i];
-    i++;
-    if (i >= text.length) clearInterval(interval);
-  }, delay);
+function explode(x, y, delay=false) {
+  setTimeout(()=>{
+    const color = "#FFD700"; // pastel gold
+    for(let i=0;i<150;i++){
+      const size = Math.random()*3+2;
+      particles.push(new Particle(x, y, color, size));
+    }
+    if(navigator.vibrate) navigator.vibrate(50);
+    const sound = document.getElementById("fireSound");
+    sound.currentTime = 0;
+    sound.play();
+  }, delay? 500:0);
 }
 
 function animate() {
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
+  ctx.fillRect(0,0,canvas.width, canvas.height);
 
-  if (launched && phase === 0) {
-    rocketY -= 2;
-    ctx.fillStyle = gold;
-    ctx.fillRect(canvas.width/2 - 2, rocketY, 4, 14);
+  if(rocketLaunched && rocket){
+    rocket.y += rocket.vy;
+    ctx.fillStyle = "orange";
+    ctx.beginPath();
+    ctx.arc(rocket.x, rocket.y + 10, 4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "white";
+    ctx.fillRect(rocket.x -3, rocket.y -12, 6,12);
 
-    if (rocketY < canvas.height/2) {
-      phase = 1;
-      navigator.vibrate?.(30);
-      document.getElementById("boom").play();
-      for (let i = 0; i < 3; i++)
-        setTimeout(() => heartExplosion(canvas.width/2, canvas.height/2, 40 + i*20), i*300);
-
-      setTimeout(() => {
-        typeText(
-          document.getElementById("message"),
-          "Happy New Year 🤍"
-        );
-      }, 700);
-
-      setTimeout(() => {
-        document.getElementById("love").style.opacity = 1;
-        heartExplosion(canvas.width/2, canvas.height/2 - 80, 60);
-        navigator.vibrate?.(20);
-      }, 2200);
-
-      setTimeout(() => {
-        document.getElementById("endBtn").style.display = "block";
-      }, 3500);
+    if(rocket.y < canvas.height/3){
+      // multiple delayed explosions
+      explode(rocket.x, rocket.y);
+      explode(rocket.x+50, rocket.y-30,true);
+      explode(rocket.x-50, rocket.y-30,true);
+      rocket = null;
+      setTimeout(showMessage, 800);
     }
   }
 
-  particles = particles.filter(p => p.alpha > 0);
+  particles = particles.filter(p => p.alpha>0);
   particles.forEach(p => { p.update(); p.draw(); });
 
   requestAnimationFrame(animate);
 }
 
-canvas.addEventListener("click", () => {
-  if (launched) return;
-  launched = true;
-  document.getElementById("hint").style.display = "none";
+canvas.addEventListener("click", ()=>{
+  if(!rocketLaunched){
+    rocketLaunched = true;
+    document.getElementById("hint").style.display = "none";
+    rocket = {x: canvas.width/2, y: canvas.height-50, vy: -4}; // slower rocket
+  }
 });
 
-document.getElementById("endBtn").onclick = () => {
-  document.body.style.transition = "opacity 1.5s";
-  document.body.style.opacity = 0;
-};
-
-document.getElementById("time").textContent =
-  new Date().toLocaleString();
-
 animate();
+
+// Typing animation for long message
+const longMessage = `I don’t wish for grand things this year. I just wish for more of us—more conversations that last longer than planned, more moments that feel simple but mean everything, more reasons to smile because you exist.
+
+If this year taught me anything, it’s that love doesn’t have to be loud to be real. Sometimes it’s just choosing the same person again, even as the calendar changes.
+
+So here’s to a new year—one I’m grateful to begin with you in my heart.
+Always,
+Aaron`;
+
+function showMessage(){
+  const msgDiv = document.getElementById("message");
+  msgDiv.classList.add("show");
+  let i=0;
+  function type(){
+    if(i<longMessage.length){
+      msgDiv.textContent += longMessage.charAt(i);
+      i++;
+      setTimeout(type,40);
+    } else {
+      setTimeout(showSecondFirework,1000);
+    }
+  }
+  type();
+}
+
+// Second firework page
+function showSecondFirework(){
+  // clear canvas
+  ctx.clearRect(0,0,canvas.width, canvas.height);
+  document.getElementById("message").style.display="none";
+  const secDiv = document.getElementById("secondMessage");
+  secDiv.style.opacity = "1";
+  let text = "I love you Riaaaa";
+  let i=0;
+  function type(){
+    if(i<text.length){
+      secDiv.textContent += text.charAt(i);
+      i++;
+      setTimeout(type,80);
+    } else {
+      // small fireworks around letters
+      const letters = secDiv.getClientRects();
+      let interval = setInterval(()=>{
+        let x = Math.random()*canvas.width;
+        let y = Math.random()*canvas.height/2;
+        explode(x,y);
+      },300);
+      // stop after few seconds
+      setTimeout(()=>{clearInterval(interval); document.getElementById("endBtn").style.display="block";},5000);
+    }
+  }
+  type();
+}
+
+// Timestamp
+function updateTimestamp(){
+  const ts = document.getElementById("timestamp");
+  const now = new Date();
+  ts.textContent = now.toLocaleString();
+}
+setInterval(updateTimestamp,1000);
+updateTimestamp();
+
+// End button
+document.getElementById("endBtn").addEventListener("click",()=>{
+  location.reload();
+});
 </script>
 
 </body>
